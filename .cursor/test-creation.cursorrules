@@ -1,0 +1,2 @@
+Test files should be independant .cs classes, do not inherit from anything.
+To interact with the ECS, use World.DefaultGameObjectInjectionWorld.EntityManager or whatever.
