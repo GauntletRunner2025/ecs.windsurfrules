@@ -42,3 +42,4 @@ Use strings where necessary, not FixedString64 or anytghing like that. But remem
 When writing tests, don't have Test derive from any kindof SystemBase. You can still access ECS from a non-systemBase class, just use World.DefaultGameObjectInjectionWorld.EntityManager or whatever.
 Dont write any code that creates a new world. 
 When writing tests, look to ExampleTest.cs see how it doesn't mess with Worlds or ECS systems. For an editor test we shouldn't need anything ECS. We're just passing data into some static function somewhere.
+There are also examples of components in the examples~/ExampleComponents.cs file.
