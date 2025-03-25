@@ -11,28 +11,11 @@ public partial class Example : SystemBase
         //Note this string is public static, so it can be tested by Unit tests. 
         //Also it doesn't involve any ECS concepts, just operating on data that gets passed in.
         //It has no state.
-        public static string[] ExtractAgents(string jsonContent)
+        public static bool IsGreaterThanZero(int value)
         {
-            try
-            {
-                var jsonObject = JObject.Parse(jsonContent);
-                
-                if (!jsonObject.ContainsKey("agents"))
-                {
-                    throw new Exception("JSON does not contain 'agents' array");
-                }
-                
-                return jsonObject["agents"].ToObject<string[]>();
-            }
-            catch (Exception ex)
-            {
-                if (ex.Message == "JSON does not contain 'agents' array")
-                {
-                    throw;
-                }
-                throw new Exception("Failed to parse JSON: " + ex.Message);
-            }
+            return value > 0;
         }
+    }
     protected override void OnCreate()
     {
         //This function happens once no matter what

@@ -2,9 +2,9 @@
 
 # Define paths
 $unityPath = "C:\Program Files\Unity\Hub\Editor\6000.1.0b6\Editor\Unity.exe"
-$testResultsPath = "C:\gauntletai\bounce\test-results.xml"
-$projectPath = "C:\gauntletai\bounce"
-$logFilePath = "C:\gauntletai\bounce\unity-log.txt"
+$testResultsPath = "C:\gauntletai\OpenAI-Agents\test-results.xml"
+$projectPath = "C:\gauntletai\OpenAI-Agents"
+$logFilePath = "C:\gauntletai\OpenAI-Agents\unity-log.txt"
 
 Write-Host "Running Unity tests..."
 
@@ -20,42 +20,79 @@ if ($unityProcesses) {
 
 # Run Unity with tests directly
 try {
-    Write-Host "Executing: `"$unityPath`" -runTests -testResults `"$testResultsPath`" -batchmode -projectPath `"$projectPath`" -testPlatform EditMode -logFile `"$logFilePath`""
+    $args = @(
+        "-runTests",
+        "-testResults", $testResultsPath,
+        "-batchmode",
+        "-projectPath", $projectPath,
+        "-testPlatform", "EditMode",
+        "-logFile", $logFilePath
+    )
     
-    $process = Start-Process -FilePath $unityPath -ArgumentList "-runTests", "-testResults", $testResultsPath, "-batchmode", "-projectPath", $projectPath, "-testPlatform", "EditMode", "-logFile", $logFilePath -Wait -PassThru -NoNewWindow
+    Write-Host "Executing Unity with args: $args"
     
-    # Check the exit code
-    $exitCode = $process.ExitCode
-    Write-Host "Unity test process completed with exit code: $exitCode"
+    $pinfo = New-Object System.Diagnostics.ProcessStartInfo
+    $pinfo.FileName = $unityPath
+    $pinfo.RedirectStandardError = $true
+    $pinfo.RedirectStandardOutput = $true
+    $pinfo.UseShellExecute = $false
+    $pinfo.Arguments = $args
     
-    # If the exit code is non-zero, extract content from the log file
-    if ($exitCode -ne 0) {
-        Write-Host "Tests failed. Examining log file..."
-        
-        # Check if the log file exists
-        if (Test-Path $logFilePath) {
-            Write-Host "Log file found. Displaying last 20 lines:"
-            Get-Content -Path $logFilePath -Tail 20
-            
-            # Check for the specific "already open in another instance" error
-            $logContent = Get-Content -Path $logFilePath -Raw
-            if ($logContent -match "project.*already open in another instance") {
-                Write-Host "`nERROR: Unity project is already open in another instance."
-                Write-Host "Please close all Unity instances before running tests."
-            }
-        } else {
-            Write-Host "Log file not found at: $logFilePath"
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = $pinfo
+    $process.Start() | Out-Null
+    
+    # Wait for process with timeout (15 minutes)
+    $timeout = 900 * 1000 # milliseconds
+    if (-not $process.WaitForExit($timeout)) {
+        Write-Host "ERROR: Unity test process timed out after $($timeout/1000) seconds"
+        try {
+            $process.Kill()
         }
-        
-        # Return the exit code from Unity
-        exit $exitCode
-    } else {
-        Write-Host "Tests completed successfully."
+        catch {
+            Write-Host "Failed to kill Unity process: $_"
+        }
+        exit 1
     }
-} catch {
+    
+    # $stdout = $process.StandardOutput.ReadToEnd()
+    # $stderr = $process.StandardError.ReadToEnd()
+    $exitCode = $process.ExitCode
+    
+    # Write-Host "Unity test process completed with exit code: $exitCode"
+    # if ($stdout) { Write-Host "stdout: $stdout" }
+    # if ($stderr) { Write-Host "stderr: $stderr" }
+    
+    if ($exitCode -eq 1) {
+        # Read unity log and extract error message
+        if (Test-Path $logFilePath) {
+
+            #Load the file into an array of lines
+            $lines = Get-Content $logFilePath
+            #for loop through the lines until we find one starting with ## Output
+            for ($i = 0; $i -lt $lines.Length; $i++) {
+                #Use string.startswith, not regex
+                if ($lines[$i].StartsWith("#")) {
+                    #ALso the line contgains Output
+                    if ($lines[$i] -match "Output") {   
+                        Write-Host $lines[$i + 1].Trim()
+                        break
+                    }
+                }
+            }
+        }
+        exit $exitCode
+    }
+    elseif ($exitCode -ne 0) {
+        Write-Host "Tests failed. Exit code: $exitCode"
+        exit $exitCode
+    }
+    else {
+        Write-Host "Tests completed successfully, see results at $testResultsPath"
+        exit 0
+    }
+}
+catch {
     Write-Host "Error executing Unity tests: $_"
     exit 1
 }
-
-Write-Host "Script completed."
-exit 0 
